@@ -1,0 +1,147 @@
+{% extends 'layout.html' %}
+
+{% block title %}Edit Energy Record{% endblock %}
+
+{% block head %}
+<style>
+    .hourly-data-container {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-edit me-2"></i>Edit Energy Record</h2>
+    <a href="{{ url_for('energy_records') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Records
+    </a>
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <form method="post" action="{{ url_for('edit_energy_record', record_id=record.id) }}">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="date" name="date" value="{{ record.date.strftime('%Y-%m-%d') }}" readonly>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="consumption_kwh" class="form-label">Total Consumption (kWh)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="consumption_kwh" name="consumption_kwh" 
+                               value="{{ record.consumption_kwh if record.consumption_kwh is not none else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="generation_kwh" class="form-label">Total Generation (kWh)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="generation_kwh" name="generation_kwh" 
+                               value="{{ record.generation_kwh if record.generation_kwh is not none else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="battery_level_pct" class="form-label">Battery Level (%)</label>
+                        <input type="number" step="0.1" min="0" max="100" class="form-control" id="battery_level_pct" name="battery_level_pct" 
+                               value="{{ record.battery_level_pct if record.battery_level_pct is not none else '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="grid_import_kwh" class="form-label">Grid Import (kWh)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="grid_import_kwh" name="grid_import_kwh" 
+                               value="{{ record.grid_import_kwh if record.grid_import_kwh is not none else '' }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="grid_export_kwh" class="form-label">Grid Export (kWh)</label>
+                        <input type="number" step="0.01" min="0" class="form-control" id="grid_export_kwh" name="grid_export_kwh" 
+                               value="{{ record.grid_export_kwh if record.grid_export_kwh is not none else '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            {% if devices %}
+            <h4 class="mt-4 mb-3"><i class="fas fa-plug me-2"></i>Device Consumption</h4>
+            <div class="row">
+                {% for device in devices %}
+                <div class="col-md-4 mb-3">
+                    <label for="device_{{ device.id }}_consumption" class="form-label">{{ device.name }} (kWh)</label>
+                    <input type="number" step="0.01" min="0" class="form-control" 
+                           id="device_{{ device.id }}_consumption" 
+                           name="device_{{ device.id }}_consumption"
+                           value="{{ device_consumption.get(device.id, '') }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <h4 class="mt-4 mb-3">
+                <i class="fas fa-clock me-2"></i>Hourly Data
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" data-bs-toggle="collapse" data-bs-target="#hourlyDataCollapse">
+                    Toggle View
+                </button>
+            </h4>
+            
+            <div class="collapse" id="hourlyDataCollapse">
+                <div class="card card-body mb-4 hourly-data-container">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Hour</th>
+                                    <th>Consumption (kWh)</th>
+                                    <th>Generation (kWh)</th>
+                                    <th>Battery (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for hour in range(24) %}
+                                <tr>
+                                    <td>{{ hour }}:00</td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm" 
+                                               id="hour_{{ hour }}_consumption" 
+                                               name="hour_{{ hour }}_consumption"
+                                               value="{{ hourly_data.get(hour, {}).get('consumption', '') }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.01" min="0" class="form-control form-control-sm" 
+                                               id="hour_{{ hour }}_generation" 
+                                               name="hour_{{ hour }}_generation"
+                                               value="{{ hourly_data.get(hour, {}).get('generation', '') }}">
+                                    </td>
+                                    <td>
+                                        <input type="number" step="0.1" min="0" max="100" class="form-control form-control-sm" 
+                                               id="hour_{{ hour }}_battery" 
+                                               name="hour_{{ hour }}_battery"
+                                               value="{{ hourly_data.get(hour, {}).get('battery', '') }}">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Update Energy Record
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

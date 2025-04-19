@@ -1,0 +1,821 @@
+{% extends 'layout.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .energy-card, .history-card {
+        border-radius: 12px;
+        background-color: rgba(30, 30, 30, 0.8);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .energy-stats {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 1rem;
+    }
+    
+    .stat-item {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        margin-bottom: 0.2rem;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+    
+    .production-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #FFA500;
+        margin-right: 5px;
+    }
+    
+    .consumption-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: #A9A9A9;
+        margin-right: 5px;
+    }
+    
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .calendar-nav {
+        display: flex;
+        align-items: center;
+    }
+    
+    .calendar-nav button {
+        background: none;
+        border: none;
+        color: var(--bs-body-color);
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
+    
+    .calendar-month {
+        margin: 0 1rem;
+        font-weight: 600;
+    }
+    
+    .calendar-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 5px;
+    }
+    
+    .calendar-table th {
+        text-align: center;
+        padding: 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--bs-secondary);
+    }
+    
+    .calendar-table td {
+        text-align: center;
+        padding: 0.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+    }
+    
+    .calendar-day {
+        width: 14.28%;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .calendar-day.has-production {
+        background-color: rgba(255, 165, 0, 0.2);
+    }
+    
+    .calendar-day.has-production:hover {
+        background-color: rgba(255, 165, 0, 0.4);
+    }
+    
+    .calendar-day.active {
+        background-color: #FFA500;
+        color: #000;
+    }
+    
+    .info-icon {
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    
+    .info-icon:hover {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">Dashboard</h2>
+            <div>
+                {% if not session.get('user_id') %}
+                <a href="{{ url_for('login') }}" class="btn btn-sm btn-primary me-2">
+                    <i class="fas fa-sign-in-alt me-1"></i>Login
+                </a>
+                {% endif %}
+                <button class="btn btn-sm btn-outline-light me-2" id="toggleThemeBtn">
+                    <i class="fas fa-moon me-1"></i>Dark Mode
+                </button>
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('profile') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-cog me-1"></i>Settings
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not session.get('user_id') %}
+<div class="alert alert-info mb-4">
+    <i class="fas fa-info-circle me-2"></i>
+    Please <a href="{{ url_for('login') }}">login</a> or <a href="{{ url_for('register') }}">register</a> to view your personalized energy dashboard.
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-7 col-md-12">
+        <!-- Energy Card -->
+        <div class="energy-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">ENERGY</h5>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-dark dropdown-toggle" type="button" id="timeRangeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        Today
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="timeRangeDropdown">
+                        <li><a class="dropdown-item active" href="#">Today</a></li>
+                        <li><a class="dropdown-item" href="#">Yesterday</a></li>
+                        <li><a class="dropdown-item" href="#">This Week</a></li>
+                        <li><a class="dropdown-item" href="#">This Month</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Energy Chart -->
+            <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                <small id="lastUpdateTime" class="text-muted">Last updated: {{ now.strftime('%H:%M:%S') }}</small>
+                <button id="refreshBtn" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-sync-alt me-1"></i>Refresh
+                </button>
+            </div>
+            <div id="energyChart" style="height: 250px;"></div>
+            
+            <!-- Energy Stats -->
+            <div class="energy-stats">
+                <div class="stat-item">
+                    <div class="stat-value text-warning">
+                        {% if today_record and today_record.generation_kwh is not none %}
+                            {{ today_record.generation_kwh|round(2) }} kWh
+                        {% elif forecasted_generation is not none %}
+                            {{ forecasted_generation|round(2) }} kWh <small class="text-muted">(forecast)</small>
+                        {% elif energy_profile and energy_profile.solar_capacity %}
+                            ~{{ (energy_profile.solar_capacity * 4.5)|round(2) }} kWh
+                        {% else %}
+                            37.97 kWh
+                        {% endif %}
+                        <span class="info-icon"><i class="fas fa-info-circle"></i></span>
+                    </div>
+                    <div class="stat-label"><span class="production-dot"></span>Production</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value text-secondary">
+                        {% if today_record and today_record.consumption_kwh is not none %}
+                            {{ today_record.consumption_kwh|round(2) }} kWh
+                        {% elif forecasted_consumption is not none %}
+                            {{ forecasted_consumption|round(2) }} kWh <small class="text-muted">(forecast)</small>
+                        {% else %}
+                            16.4 kWh
+                        {% endif %}
+                        <span class="info-icon"><i class="fas fa-info-circle"></i></span>
+                    </div>
+                    <div class="stat-label"><span class="consumption-dot"></span>Consumption</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System History Card -->
+        <div class="history-card">
+            <h5 class="mb-3">SYSTEM HISTORY</h5>
+            
+            <div class="calendar-header">
+                <div class="calendar-nav">
+                    <button id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                    <div class="calendar-month">
+                        <span id="calendarMonthName">{{ now.strftime('%B') }}</span> 
+                        <span id="calendarYear">{{ now.strftime('%Y') }}</span>
+                    </div>
+                    <button id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+            
+            <table class="calendar-table">
+                <thead>
+                    <tr>
+                        <th>SUN</th>
+                        <th>MON</th>
+                        <th>TUE</th>
+                        <th>WED</th>
+                        <th>THU</th>
+                        <th>FRI</th>
+                        <th>SAT</th>
+                    </tr>
+                </thead>
+                <tbody id="calendarBody">
+                    {% set current_month = now.month %}
+                    {% set current_year = now.year %}
+                    {% set current_day = now.day %}
+                    {% set first_day = now.replace(day=1) %}
+                    {% set first_weekday = first_day.weekday() %}
+                    {% set days_in_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1) %}
+                    {% set days_in_month = days_in_month.day %}
+                    
+                    {# Calculate previous month's days to display #}
+                    {% set prev_month = (first_day - timedelta(days=1)).month %}
+                    {% set prev_year = (first_day - timedelta(days=1)).year %}
+                    {% set days_in_prev_month = (first_day - timedelta(days=1)).day %}
+                    
+                    {# Initial empty cells for days of previous month #}
+                    {% set day_counter = days_in_prev_month - ((first_weekday - 1) % 7) + 1 if first_weekday > 0 else days_in_prev_month %}
+                    
+                    {% for week in range(6) %}
+                        <tr>
+                            {% for weekday in range(7) %}
+                                {% if (week == 0 and weekday < first_day.isoweekday() % 7) %}
+                                    {# Previous month days #}
+                                    <td class="calendar-day text-muted">{{ day_counter }}</td>
+                                    {% set day_counter = day_counter + 1 %}
+                                {% elif (week * 7 + weekday - first_day.isoweekday() % 7 + 1) <= days_in_month %}
+                                    {# Current month days #}
+                                    {% set day_num = week * 7 + weekday - first_day.isoweekday() % 7 + 1 %}
+                                    
+                                    {# Check if this day has energy data #}
+                                    {% set has_data = false %}
+                                    {% if energy_records %}
+                                        {% for record in energy_records %}
+                                            {% if record.date.day == day_num and record.date.month == current_month %}
+                                                {% set has_data = true %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    <td class="calendar-day {{ 'has-production' if has_data else '' }} {{ 'active' if day_num == current_day else '' }}">
+                                        {{ day_num }}
+                                    </td>
+                                {% else %}
+                                    {# Next month days #}
+                                    <td class="calendar-day text-muted">{{ loop.index }}</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="col-lg-5 col-md-12">
+        <!-- System Overview Card -->
+        <div class="energy-card">
+            <h5 class="mb-3">SYSTEM OVERVIEW</h5>
+            <div class="d-flex justify-content-between mb-3">
+                <div>
+                    {% if today_record and today_record.generation_kwh is not none and today_record.consumption_kwh is not none %}
+                        {% set net_energy = today_record.generation_kwh - today_record.consumption_kwh %}
+                        <div class="fs-4 fw-bold {{ 'text-success' if net_energy > 0 else 'text-danger' }}">
+                            {{ '+' if net_energy > 0 else '' }}{{ net_energy|round(2) }} kWh
+                        </div>
+                    {% elif forecasted_generation is not none and forecasted_consumption is not none %}
+                        {% set net_energy = forecasted_generation - forecasted_consumption %}
+                        <div class="fs-4 fw-bold {{ 'text-success' if net_energy > 0 else 'text-danger' }}">
+                            {{ '+' if net_energy > 0 else '' }}{{ net_energy|round(2) }} kWh <small class="text-muted">(forecast)</small>
+                        </div>
+                    {% else %}
+                        <div class="fs-4 fw-bold text-success">+21.57 kWh</div>
+                    {% endif %}
+                    <div class="text-muted">Net Energy Today</div>
+                </div>
+                <a href="{{ url_for('energy_records') if session.get('user_id') else '#' }}" class="btn btn-outline-success">
+                    <i class="fas fa-history me-1"></i>History
+                </a>
+            </div>
+            
+            <div class="card bg-dark mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="fas fa-solar-panel me-2 text-warning"></i>Solar Production</h6>
+                        {% if energy_profile and energy_profile.solar_capacity %}
+                            <span class="badge bg-warning text-dark">{{ energy_profile.solar_capacity }} kW</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">Active</span>
+                        {% endif %}
+                    </div>
+                    <div class="progress mb-1" style="height: 8px;">
+                        {% if today_record and today_record.generation_kwh is not none and energy_profile and energy_profile.solar_capacity %}
+                            {% set capacity_percent = (today_record.generation_kwh / (energy_profile.solar_capacity * 5)) * 100 %}
+                            {% set capacity_percent = [capacity_percent, 100]|min %}
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ capacity_percent }}%;" 
+                                 aria-valuenow="{{ capacity_percent }}" 
+                                 aria-valuemin="0" aria-valuemax="100"></div>
+                        {% else %}
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: 80%;" 
+                                 aria-valuenow="80" 
+                                 aria-valuemin="0" aria-valuemax="100"></div>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">
+                        {% if today_record and today_record.generation_kwh is not none and energy_profile and energy_profile.solar_capacity %}
+                            {{ ((today_record.generation_kwh / (energy_profile.solar_capacity * 5)) * 100)|round|int }}% of daily capacity
+                        {% else %}
+                            80% of capacity
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            
+            <div class="card bg-dark mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="fas fa-battery-three-quarters me-2 text-info"></i>Home Battery</h6>
+                        {% if today_record and today_record.battery_level_pct is not none %}
+                            {% if today_record.generation_kwh > today_record.consumption_kwh %}
+                                <span class="badge bg-info text-dark">Charging</span>
+                            {% elif today_record.battery_level_pct > 10 %}
+                                <span class="badge bg-warning text-dark">Discharging</span>
+                            {% else %}
+                                <span class="badge bg-danger text-white">Low</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge bg-info text-dark">Charging</span>
+                        {% endif %}
+                    </div>
+                    <div class="progress mb-1" style="height: 8px;">
+                        {% if today_record and today_record.battery_level_pct is not none %}
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ today_record.battery_level_pct }}%;" 
+                                 aria-valuenow="{{ today_record.battery_level_pct }}" 
+                                 aria-valuemin="0" aria-valuemax="100"></div>
+                        {% else %}
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: 65%;" 
+                                 aria-valuenow="65" 
+                                 aria-valuemin="0" aria-valuemax="100"></div>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">
+                        {% if today_record and today_record.battery_level_pct is not none %}
+                            {{ today_record.battery_level_pct|round(1) }}% 
+                            {% if energy_profile and energy_profile.battery_capacity %}
+                                · {{ (today_record.battery_level_pct / 100 * energy_profile.battery_capacity)|round(1) }} kWh available
+                            {% endif %}
+                        {% else %}
+                            65% charged · 4.2 hrs to full
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            
+            <div class="card bg-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="fas fa-plug me-2 text-secondary"></i>Home Consumption</h6>
+                        {% if today_record and today_record.consumption_kwh is not none %}
+                            <span class="badge bg-secondary">{{ (today_record.consumption_kwh / 24)|round(1) }} kW Avg</span>
+                        {% else %}
+                            <span class="badge bg-secondary">2.4 kW Now</span>
+                        {% endif %}
+                    </div>
+                    <div class="progress mb-1" style="height: 8px;">
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 40%;" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-muted">
+                        {% if devices %}
+                            {{ devices|length }} devices tracked
+                        {% else %}
+                            40% of average usage
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Energy Efficiency Tips Card -->
+        <div class="energy-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">ENERGY TIPS</h5>
+                <button class="btn btn-sm btn-outline-info">See All</button>
+            </div>
+            
+            <div class="alert alert-dark mb-3">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="fas fa-lightbulb text-warning fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="alert-heading">Shift High-Power Appliance Usage</h6>
+                        <p class="mb-0">Running your washer between 10am-2pm could save you approximately 0.8 kWh daily.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert alert-dark">
+                <div class="d-flex">
+                    <div class="me-3">
+                        <i class="fas fa-sun text-warning fa-2x"></i>
+                    </div>
+                    <div>
+                        <h6 class="alert-heading">Optimal Solar Production Today</h6>
+                        <p class="mb-0">Peak solar hours today will be between 11am-3pm. Consider scheduling energy-intensive tasks during this window.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global variables for real-time data
+    let lastUpdateTime = null;
+    let dashboardData = null;
+    const UPDATE_INTERVAL = 30000; // Update every 30 seconds
+    
+    // Function to fetch real-time dashboard data
+    async function fetchDashboardData() {
+        try {
+            const response = await fetch('/api/dashboard_data');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            lastUpdateTime = new Date();
+            dashboardData = data;
+            
+            // Update the dashboard UI with new data
+            updateDashboardUI(data);
+            
+            // Schedule next update
+            setTimeout(fetchDashboardData, UPDATE_INTERVAL);
+            
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            // Still schedule next update even if there was an error
+            setTimeout(fetchDashboardData, UPDATE_INTERVAL);
+        }
+    }
+    
+    // Function to update the dashboard UI with new data
+    function updateDashboardUI(data) {
+        // Update time indicator
+        const timeIndicator = document.getElementById('lastUpdateTime');
+        if (timeIndicator) {
+            timeIndicator.textContent = `Last updated: ${data.current_time}`;
+        }
+        
+        // Update energy stats
+        updateEnergyStats(data);
+        
+        // Update energy chart
+        updateEnergyChart(data);
+        
+        // Update system overview
+        updateSystemOverview(data);
+    }
+    
+    // Update energy stats section
+    function updateEnergyStats(data) {
+        // Update generation value
+        const generationEl = document.querySelector('.energy-stats .stat-item:nth-child(1) .stat-value');
+        if (generationEl && data.generation_kwh !== null) {
+            let content = `${data.generation_kwh.toFixed(2)} kWh`;
+            if (data.is_forecast) {
+                content += ` <small class="text-muted">(forecast)</small>`;
+            }
+            generationEl.innerHTML = content;
+        }
+        
+        // Update consumption value
+        const consumptionEl = document.querySelector('.energy-stats .stat-item:nth-child(2) .stat-value');
+        if (consumptionEl && data.consumption_kwh !== null) {
+            let content = `${data.consumption_kwh.toFixed(2)} kWh`;
+            if (data.is_forecast) {
+                content += ` <small class="text-muted">(forecast)</small>`;
+            }
+            consumptionEl.innerHTML = content;
+        }
+    }
+    
+    // Update the energy chart with new data
+    function updateEnergyChart(data) {
+        if (!data.hourly_data) return;
+        
+        const hourlyGen = new Array(24).fill(0);
+        const hourlyCons = new Array(24).fill(0);
+        
+        // Extract hourly data
+        data.hourly_data.forEach(hour => {
+            if (hour.generation_kwh !== null) hourlyGen[hour.hour] = hour.generation_kwh;
+            if (hour.consumption_kwh !== null) hourlyCons[hour.hour] = hour.consumption_kwh;
+        });
+        
+        // Update chart
+        const chartDiv = document.getElementById('energyChart');
+        if (chartDiv && typeof Plotly !== 'undefined') {
+            Plotly.update('energyChart', {
+                'y': [hourlyGen, hourlyCons]
+            }, {}, [0, 1]);
+        }
+    }
+    
+    // Update system overview section
+    function updateSystemOverview(data) {
+        // Update net energy
+        if (data.net_energy !== null) {
+            const netEnergyEl = document.querySelector('.system-overview .net-energy-value');
+            if (netEnergyEl) {
+                const isPositive = data.net_energy > 0;
+                netEnergyEl.className = `fs-4 fw-bold ${isPositive ? 'text-success' : 'text-danger'}`;
+                let content = `${isPositive ? '+' : ''}${data.net_energy.toFixed(2)} kWh`;
+                if (data.is_forecast) {
+                    content += ` <small class="text-muted">(forecast)</small>`;
+                }
+                netEnergyEl.innerHTML = content;
+            }
+        }
+        
+        // Update battery level
+        if (data.battery_level_pct !== null) {
+            const batteryProgressEl = document.querySelector('.home-battery .progress-bar');
+            const batteryTextEl = document.querySelector('.home-battery .battery-text');
+            
+            if (batteryProgressEl) {
+                batteryProgressEl.style.width = `${data.battery_level_pct}%`;
+                batteryProgressEl.setAttribute('aria-valuenow', data.battery_level_pct);
+            }
+            
+            if (batteryTextEl) {
+                batteryTextEl.textContent = `${data.battery_level_pct.toFixed(1)}%`;
+            }
+        }
+    }
+    
+    // Generate a solar production curve based on total daily kWh
+    function generateSolarCurve(totalKwh) {
+        const hourlyData = new Array(24).fill(0);
+        
+        // Solar production follows a bell curve during daylight hours (roughly 6am-6pm)
+        // With peak production around noon
+        const dayStart = 6;  // 6am
+        const dayEnd = 18;   // 6pm
+        const peakHour = 12; // noon
+        const dayHours = dayEnd - dayStart;
+        
+        // Calculate production for daylight hours
+        for (let hour = dayStart; hour < dayEnd; hour++) {
+            // Position in the day (0 to 1)
+            const position = (hour - dayStart) / dayHours;
+            
+            // Bell curve equation (roughly): e^(-(x-0.5)²/0.05)
+            // This gives a peak at position 0.5 (noon) and tapers to nearly 0 at the edges
+            const bellCurveValue = Math.exp(-Math.pow(position - 0.5, 2) / 0.05);
+            
+            // Scale the value so the sum of all values equals the total kWh
+            hourlyData[hour] = bellCurveValue;
+        }
+        
+        // Calculate the sum of the raw values
+        const sum = hourlyData.reduce((a, b) => a + b, 0);
+        
+        // Scale the values to match the total kWh
+        return hourlyData.map(value => (value / sum) * totalKwh);
+    }
+    
+    // Generate a typical home consumption pattern based on total daily kWh
+    function generateConsumptionPattern(totalKwh) {
+        const hourlyData = new Array(24).fill(0);
+        
+        // Typical home consumption has morning and evening peaks
+        // with lower consumption during the day and night
+        const morningPeakStart = 6;   // 6am
+        const morningPeakEnd = 9;     // 9am
+        const eveningPeakStart = 17;  // 5pm
+        const eveningPeakEnd = 22;    // 10pm
+        
+        // Define relative consumption weights for each hour
+        // Higher values = more consumption during that hour
+        const hourlyWeights = [
+            0.5, 0.4, 0.3, 0.3, 0.4, 0.6,  // 12am - 6am
+            1.5, 2.0, 1.8, 1.2, 1.0, 0.9,  // 6am - 12pm
+            0.8, 0.8, 0.9, 1.1, 1.5, 2.0,  // 12pm - 6pm
+            2.2, 1.8, 1.4, 1.0, 0.8, 0.6   // 6pm - 12am
+        ];
+        
+        // Calculate the sum of weights
+        const totalWeight = hourlyWeights.reduce((a, b) => a + b, 0);
+        
+        // Distribute the total kWh according to the weights
+        for (let hour = 0; hour < 24; hour++) {
+            hourlyData[hour] = (hourlyWeights[hour] / totalWeight) * totalKwh;
+        }
+        
+        return hourlyData;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize real-time data updates
+        fetchDashboardData();
+        
+        // Set up refresh button
+        document.getElementById('refreshBtn').addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+            
+            fetchDashboardData().finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-sync-alt me-1"></i>Refresh';
+            });
+        });
+        // Create the energy chart
+        const hourLabels = ['0am', '6am', '12pm', '6pm', '12am'];
+        const energyHours = Array.from({length: 24}, (_, i) => i);
+        
+        // Get data from server or use default patterns
+        {% if hourly_data and hourly_data|length > 0 %}
+            const productionData = [
+                {% for hour_data in hourly_data %}
+                    {{ hour_data.generation_kwh|default(0) }}{{ ", " if not loop.last }}
+                {% endfor %}
+            ];
+            
+            const consumptionData = [
+                {% for hour_data in hourly_data %}
+                    {{ hour_data.consumption_kwh|default(0) }}{{ ", " if not loop.last }}
+                {% endfor %}
+            ];
+        {% elif forecasted_generation is not none or forecasted_consumption is not none %}
+            // Generate hourly profiles based on forecasted data
+            const forecastedGenKwh = {{ forecasted_generation|default(0) }};
+            const forecastedConsKwh = {{ forecasted_consumption|default(0) }};
+            
+            // For generation, create a solar-like curve (higher during midday)
+            const productionData = generateSolarCurve(forecastedGenKwh);
+            
+            // For consumption, create a typical daily pattern
+            const consumptionData = generateConsumptionPattern(forecastedConsKwh);
+        {% else %}
+            // Default sample data if no actual or forecasted data available
+            const productionData = [
+                0.2, 0.3, 0.2, 0.1, 0.1, 0.5, 
+                1.2, 2.5, 3.8, 4.5, 5.2, 5.0,
+                4.8, 4.5, 4.2, 3.5, 2.8, 1.8, 
+                0.8, 0.3, 0.2, 0.1, 0.1, 0.2
+            ];
+            
+            const consumptionData = [
+                0.4, 0.3, 0.3, 0.3, 0.5, 0.8,
+                1.2, 1.4, 1.0, 0.9, 0.8, 0.8,
+                0.7, 0.8, 0.7, 0.9, 1.2, 1.8,
+                2.0, 1.5, 1.2, 0.8, 0.6, 0.5
+            ];
+        {% endif %}
+        
+        const traces = [
+            {
+                x: energyHours,
+                y: productionData,
+                type: 'bar',
+                name: 'Production',
+                marker: {
+                    color: '#FFA500'
+                }
+            },
+            {
+                x: energyHours,
+                y: consumptionData,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'Consumption',
+                line: {
+                    color: 'white',
+                    width: 3
+                }
+            }
+        ];
+        
+        const layout = {
+            margin: { t: 10, r: 10, l: 40, b: 40 },
+            height: 250,
+            xaxis: {
+                tickvals: [0, 6, 12, 18, 24],
+                ticktext: hourLabels,
+                tickfont: { color: '#a9a9a9' },
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)'
+            },
+            yaxis: {
+                title: 'kWh',
+                titlefont: { color: '#a9a9a9' },
+                tickfont: { color: '#a9a9a9' },
+                gridcolor: 'rgba(255,255,255,0.1)',
+                zerolinecolor: 'rgba(255,255,255,0.1)'
+            },
+            plot_bgcolor: 'transparent',
+            paper_bgcolor: 'transparent',
+            barmode: 'group',
+            showlegend: false,
+            hovermode: 'closest'
+        };
+        
+        Plotly.newPlot('energyChart', traces, layout, {
+            responsive: true,
+            displayModeBar: false
+        });
+        
+        // Calendar day selection
+        const calendarDays = document.querySelectorAll('.calendar-day');
+        calendarDays.forEach(day => {
+            day.addEventListener('click', function() {
+                // Remove active class from all days
+                calendarDays.forEach(d => d.classList.remove('active'));
+                // Add active class to clicked day
+                this.classList.add('active');
+            });
+        });
+        
+        // Month navigation
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        let currentMonth = {{ now.month - 1 }}; // Current month (0-indexed) from Flask
+        let currentYear = {{ now.year }}; // Current year from Flask
+        
+        const calendarMonthEl = document.querySelector('.calendar-month');
+        const calendarYearEl = document.getElementById('calendarYear');
+        
+        document.getElementById('prevMonth').addEventListener('click', function() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            updateCalendarHeader();
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', function() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            updateCalendarHeader();
+        });
+        
+        function updateCalendarHeader() {
+            calendarMonthEl.innerHTML = `${monthNames[currentMonth]} <span id="calendarYear">${currentYear}</span>`;
+        }
+        
+        // Theme toggle functionality
+        document.getElementById('toggleThemeBtn').addEventListener('click', function() {
+            const htmlEl = document.documentElement;
+            const currentTheme = htmlEl.getAttribute('data-bs-theme');
+            
+            if (currentTheme === 'dark') {
+                htmlEl.setAttribute('data-bs-theme', 'light');
+                this.innerHTML = '<i class="fas fa-sun me-1"></i>Light Mode';
+            } else {
+                htmlEl.setAttribute('data-bs-theme', 'dark');
+                this.innerHTML = '<i class="fas fa-moon me-1"></i>Dark Mode';
+            }
+        });
+    });
+</script>
+{% endblock %}

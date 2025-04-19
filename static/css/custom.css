@@ -1,0 +1,128 @@
+/* Custom styles for Energy Insight application */
+
+/* Main layout adjustments */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+}
+
+/* Card styling enhancements */
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(0, 0, 0, 0.15);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Chat styles */
+.chat-message {
+    border-radius: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Device cards on optimization page */
+.device-card {
+    transition: transform 0.2s ease;
+}
+
+.device-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Enhanced form controls */
+.form-control:focus, .form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+}
+
+/* Animation for charts */
+.chart-container {
+    transition: opacity 0.5s ease;
+}
+
+/* Custom breadcrumb styling */
+.breadcrumb {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Priority badges */
+.priority-essential {
+    background-color: #e74a3b !important;
+}
+
+.priority-adjustable {
+    background-color: #f6c23e !important;
+}
+
+.priority-shiftable {
+    background-color: #1cc88a !important;
+}
+
+.priority-optional {
+    background-color: #4e73df !important;
+}
+
+/* Custom alert styles */
+.alert {
+    border-radius: 0.5rem;
+    border-left-width: 0.25rem;
+}
+
+.alert-info {
+    border-left-color: #36b9cc;
+}
+
+.alert-warning {
+    border-left-color: #f6c23e;
+}
+
+.alert-danger {
+    border-left-color: #e74a3b;
+}
+
+.alert-success {
+    border-left-color: #1cc88a;
+}
+
+/* Footer styling */
+.footer {
+    background-color: var(--bs-dark);
+    padding: 1rem 0;
+    margin-top: auto;
+}
+
+/* Progress bar gradient */
+.progress-bar-gradient {
+    background: linear-gradient(to right, #4e73df, #1cc88a);
+}
+
+/* Custom scrollbar for chat container */
+#chatContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#chatContainer::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+
+#chatContainer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+}
+
+#chatContainer::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}

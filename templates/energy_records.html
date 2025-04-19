@@ -1,0 +1,81 @@
+{% extends 'layout.html' %}
+
+{% block title %}Energy Records{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-history me-2"></i>Energy Records</h2>
+    <a href="{{ url_for('add_energy_record') }}" class="btn btn-primary">
+        <i class="fas fa-plus-circle me-2"></i>Add New Record
+    </a>
+</div>
+
+{% if records %}
+<div class="card shadow">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Consumption (kWh)</th>
+                        <th>Generation (kWh)</th>
+                        <th>Grid Import (kWh)</th>
+                        <th>Grid Export (kWh)</th>
+                        <th>Battery (%)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ record.consumption_kwh|round(2) if record.consumption_kwh else '-' }}</td>
+                        <td>{{ record.generation_kwh|round(2) if record.generation_kwh else '-' }}</td>
+                        <td>{{ record.grid_import_kwh|round(2) if record.grid_import_kwh else '-' }}</td>
+                        <td>{{ record.grid_export_kwh|round(2) if record.grid_export_kwh else '-' }}</td>
+                        <td>
+                            {% if record.battery_level_pct is not none %}
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ record.battery_level_pct }}%;" 
+                                     aria-valuenow="{{ record.battery_level_pct }}" 
+                                     aria-valuemin="0" aria-valuemax="100">
+                                    {{ record.battery_level_pct|round(1) }}%
+                                </div>
+                            </div>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('edit_energy_record', record_id=record.id) }}" class="btn btn-sm btn-primary me-1">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{{ url_for('delete_energy_record', record_id=record.id) }}" class="d-inline" 
+                                  onsubmit="return confirm('Are you sure you want to delete this record?');">
+                                <button type="submit" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card shadow">
+    <div class="card-body text-center p-5">
+        <i class="fas fa-database fa-4x text-muted mb-3"></i>
+        <h3>No Energy Records Found</h3>
+        <p class="text-muted">You haven't added any energy records yet.</p>
+        <a href="{{ url_for('add_energy_record') }}" class="btn btn-primary mt-2">
+            <i class="fas fa-plus-circle me-2"></i>Add Your First Record
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

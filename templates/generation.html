@@ -1,0 +1,154 @@
+{% extends 'layout.html' %}
+
+{% block title %}Solar Generation{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-sun me-2"></i>Solar Power Generation Forecast</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Predict potential solar power generation based on your location's weather forecast.</p>
+                
+                {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ error_message }}
+                </div>
+                {% endif %}
+                
+                <form method="post" action="/generation" id="generationForm">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city" 
+                                   required value="{{ city or '' }}">
+                            <div class="form-text">Enter your city for weather data.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="days" class="form-label">Days to Forecast</label>
+                            <select class="form-select" id="days" name="days">
+                                <option value="1">1 day</option>
+                                <option value="2">2 days</option>
+                                <option value="3">3 days</option>
+                                <option value="4" selected>4 days</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        The model uses weather forecast data including temperature, humidity, solar radiation,
+                        and cloud cover to predict potential solar energy generation.
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-bolt me-2"></i>Calculate Generation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if prediction_results %}
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-chart-bar me-2"></i>Solar Generation Forecast</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Daily Generation Forecast</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Generation (kWh)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for day in prediction_results %}
+                                    <tr>
+                                        <td>{{ day.date }}</td>
+                                        <td>{{ day.prediction_kwh|round(2) }} kWh</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> These predictions use placeholder solar radiation values
+                            and actual results may vary based on local conditions.
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="/optimization" class="btn btn-success">
+                                <i class="fas fa-chart-line me-2"></i>Continue to Load Optimization
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="generationChart" style="height: 400px;"></div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h5>Hourly Profile for First Day</h5>
+                        <div id="hourlyChart" style="height: 300px;"></div>
+                        <div class="text-muted mt-2">
+                            <small>The hourly distribution is estimated based on typical daylight patterns.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if prediction_results %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Prepare data for the bar chart
+        const dates = [];
+        const values = [];
+        
+        {% for day in prediction_results %}
+        dates.push("{{ day.date }}");
+        values.push({{ day.prediction_kwh }});
+        {% endfor %}
+        
+        // Create the bar chart
+        createGenerationBarChart('generationChart', dates, values);
+        
+        // Get hourly profile for first day
+        fetch('/api/hourly_profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                daily_total: {{ prediction_results[0].prediction_kwh }},
+                daylight_hours: 12
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.hourly_profile) {
+                createHourlyLineChart('hourlyChart', data.hourly_profile);
+            }
+        })
+        .catch(error => console.error('Error fetching hourly profile:', error));
+    });
+</script>
+{% endif %}
+{% endblock %}

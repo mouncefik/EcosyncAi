@@ -1,0 +1,133 @@
+{% extends 'layout.html' %}
+
+{% block title %}Energy Consumption{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-plug me-2"></i>Energy Consumption Prediction</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Predict your home's energy consumption based on your living space and device usage.</p>
+                
+                {% if error_message %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ error_message }}
+                </div>
+                {% endif %}
+                
+                <form method="post" action="/consumption" id="consumptionForm">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="area" class="form-label">Home Area (sq. meters)</label>
+                            <input type="number" class="form-control" id="area" name="area" 
+                                   min="10" max="1000" step="1" required
+                                   value="{{ request.form.get('area', '') }}">
+                            <div class="form-text">Enter the total area of your home.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="rooms" class="form-label">Number of Rooms</label>
+                            <input type="number" class="form-control" id="rooms" name="rooms" 
+                                   min="1" max="20" step="1" required
+                                   value="{{ request.form.get('rooms', '') }}">
+                            <div class="form-text">Count all bedrooms, living areas, and other rooms.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="occupants" class="form-label">Number of Occupants</label>
+                            <input type="number" class="form-control" id="occupants" name="occupants" 
+                                   min="1" max="10" step="1" required
+                                   value="{{ request.form.get('occupants', '') }}">
+                            <div class="form-text">How many people live in your home?</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <label class="form-label">Select Devices</label>
+                        <div class="row g-3">
+                            {% for device in devices %}
+                            <div class="col-md-4 col-lg-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" 
+                                           name="devices" id="{{ device }}" value="{{ device }}"
+                                           {% if device in request.form.getlist('devices') %}checked{% endif %}>
+                                    <label class="form-check-label" for="{{ device }}">
+                                        {{ device.replace('_kWh', '') }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-calculator me-2"></i>Calculate Consumption
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if prediction_results %}
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-chart-pie me-2"></i>Prediction Results</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-4">
+                            <h5>Total Daily Consumption</h5>
+                            <div class="display-4 mb-2">{{ prediction_results.total|round(2) }} <small>kWh</small></div>
+                            <div class="text-muted">Estimated daily energy usage for your home</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>Device Breakdown</h5>
+                            <ul class="list-group">
+                                {% for device, value in prediction_results.devices.items() %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ device }}
+                                    <span class="badge bg-primary rounded-pill">{{ value|round(2) }} kWh</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        
+                        <a href="/generation" class="btn btn-info">
+                            <i class="fas fa-sun me-2"></i>Continue to Solar Generation
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <div id="consumptionChart" style="height: 400px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if prediction_results %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Prepare data for the pie chart
+        const devices = [];
+        const values = [];
+        
+        {% for device, value in prediction_results.devices.items() %}
+        devices.push("{{ device }}");
+        values.push({{ value }});
+        {% endfor %}
+        
+        // Create the pie chart
+        createConsumptionPieChart('consumptionChart', devices, values);
+    });
+</script>
+{% endif %}
+{% endblock %}

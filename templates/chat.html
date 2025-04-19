@@ -1,0 +1,181 @@
+{% extends 'layout.html' %}
+
+{% block title %}AI Assistant{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4><i class="fas fa-robot me-2"></i>Energy AI Assistant</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Ask questions about energy management, your predictions, or how to optimize your usage.</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div id="chatContainer" class="border rounded p-3 mb-3" style="height: 400px; overflow-y: auto;">
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-robot fa-3x mb-3"></i>
+                                <p>I'm your energy assistant. How can I help you today?</p>
+                            </div>
+                        </div>
+                        
+                        <form id="chatForm" class="d-flex">
+                            <input type="text" id="queryInput" class="form-control me-2" placeholder="Ask about energy management...">
+                            <button type="submit" class="btn btn-primary" id="submitQuery">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5><i class="fas fa-lightbulb me-2"></i>Sample Questions</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="list-group">
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                How can I reduce my energy consumption?
+                                            </button>
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                What's the best time to use high-power appliances?
+                                            </button>
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                How do weather conditions affect solar panel output?
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="list-group">
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                Explain load shifting and its benefits.
+                                            </button>
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                What are the most efficient appliances?
+                                            </button>
+                                            <button class="list-group-item list-group-item-action sample-question">
+                                                How can I maximize self-consumption of solar power?
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatContainer = document.getElementById('chatContainer');
+        const chatForm = document.getElementById('chatForm');
+        const queryInput = document.getElementById('queryInput');
+        const submitButton = document.getElementById('submitQuery');
+        const sampleQuestions = document.querySelectorAll('.sample-question');
+        
+        // Function to add a message to the chat
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message p-3 mb-3 rounded ${isUser ? 'bg-primary text-white ms-auto' : 'bg-secondary'}`;
+            messageDiv.style.maxWidth = '80%';
+            messageDiv.innerHTML = `
+                <div class="d-flex align-items-center mb-1">
+                    <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} me-2"></i>
+                    <strong>${isUser ? 'You' : 'AI Assistant'}</strong>
+                </div>
+                <div>${text}</div>
+            `;
+            
+            // Remove initial placeholder if present
+            if (chatContainer.querySelector('.text-center.text-muted')) {
+                chatContainer.innerHTML = '';
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Function to send query to the AI
+        async function sendQuery(query) {
+            // Add user message to chat
+            addMessage(query, true);
+            
+            // Disable input while waiting
+            queryInput.disabled = true;
+            submitButton.disabled = true;
+            
+            try {
+                // Show loading message
+                const loadingId = 'loading-' + Date.now();
+                addMessage(`<div id="${loadingId}"><i class="fas fa-spinner fa-spin me-2"></i>Thinking...</div>`);
+                
+                // Send request to server
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'query': query
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove loading message
+                const loadingElement = document.getElementById(loadingId);
+                if (loadingElement && loadingElement.parentNode) {
+                    loadingElement.parentNode.remove();
+                }
+                
+                // Check for error
+                if (data.error) {
+                    addMessage(`<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>${data.error}</div>`);
+                } else {
+                    // Format response to handle line breaks
+                    const formattedResponse = data.response.replace(/\n/g, '<br>');
+                    addMessage(formattedResponse);
+                }
+            } catch (error) {
+                console.error('Error sending query:', error);
+                addMessage(`<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Sorry, I encountered an error while processing your request.</div>`);
+            } finally {
+                // Re-enable input
+                queryInput.disabled = false;
+                submitButton.disabled = false;
+                queryInput.focus();
+            }
+        }
+        
+        // Handle form submission
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = queryInput.value.trim();
+            if (query) {
+                sendQuery(query);
+                queryInput.value = '';
+            }
+        });
+        
+        // Handle sample questions
+        sampleQuestions.forEach(button => {
+            button.addEventListener('click', function() {
+                const query = this.textContent.trim();
+                queryInput.value = query;
+                sendQuery(query);
+            });
+        });
+    });
+</script>
+{% endblock %}

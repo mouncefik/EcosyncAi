@@ -1,0 +1,131 @@
+{% extends 'layout.html' %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="p-5 mb-4 bg-dark rounded-3">
+            <div class="container-fluid py-4">
+                <h1 class="display-5 fw-bold"><i class="fas fa-solar-panel me-2"></i>Ecosync AI</h1>
+                <p class="fs-4">
+                    Optimize your energy usage, predict solar power generation, and manage your home's energy profile with AI-powered insights.
+                </p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                    <a href="/dashboard" class="btn btn-warning btn-lg px-4 me-md-2">
+                        <i class="fas fa-tachometer-alt me-2"></i>View Dashboard
+                    </a>
+                    <a href="/consumption" class="btn btn-primary btn-lg px-4 me-md-2">
+                        <i class="fas fa-plug me-2"></i>Start With Consumption
+                    </a>
+                    <a href="/generation" class="btn btn-outline-info btn-lg px-4">
+                        <i class="fas fa-sun me-2"></i>Check Solar Generation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-plug fa-3x mb-3 text-primary"></i>
+                <h5 class="card-title">Energy Consumption</h5>
+                <p class="card-text">Predict your home's energy usage based on size, occupancy, and device mix.</p>
+                <a href="/consumption" class="btn btn-outline-primary">Predict Usage</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-sun fa-3x mb-3 text-warning"></i>
+                <h5 class="card-title">Solar Generation</h5>
+                <p class="card-text">Forecast potential solar power generation based on your location and weather.</p>
+                <a href="/generation" class="btn btn-outline-warning">Forecast Power</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-3x mb-3 text-success"></i>
+                <h5 class="card-title">Load Optimization</h5>
+                <p class="card-text">Get recommendations to optimize energy usage and maximize self-consumption.</p>
+                <a href="/optimization" class="btn btn-outline-success">Optimize Usage</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>How It Works</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-2">1</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6>Input Your Home Details</h6>
+                                <p class="text-muted">Provide information about your home's size, number of rooms, and occupants.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-2">2</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6>Select Your Devices</h6>
+                                <p class="text-muted">Choose the electrical devices you use in your home.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-2">3</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6>Get Solar Generation Forecast</h6>
+                                <p class="text-muted">Generate predictions based on your location's weather forecast.</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-primary rounded-circle p-2">4</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6>Receive Optimization Insights</h6>
+                                <p class="text-muted">Get personalized recommendations to optimize your energy usage.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-robot me-2"></i>AI Assistant</h5>
+            </div>
+            <div class="card-body">
+                <p>Have questions about energy management? Our AI assistant can help you understand your energy profile and provide tips.</p>
+                <p class="fst-italic">"How can I reduce my energy consumption?"</p>
+                <p class="fst-italic">"What's the best time to use high-power appliances?"</p>
+                <a href="/chat" class="btn btn-info w-100">
+                    <i class="fas fa-comments me-2"></i>Ask the AI Assistant
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
